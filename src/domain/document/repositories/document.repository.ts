@@ -119,4 +119,109 @@ export class DocumentRepository extends Repository<Document> {
       .where('doc.embedding IS NULL')
       .getCount();
   }
+
+  // === TTL Management ===
+
+  async findExpired(): Promise<Document[]> {
+    return this.createQueryBuilder('doc')
+      .where('doc.expires_at IS NOT NULL')
+      .andWhere('doc.expires_at < NOW()')
+      .getMany();
+  }
+
+  async deleteExpired(): Promise<number> {
+    const result = await this.createQueryBuilder()
+      .delete()
+      .from(Document)
+      .where('expires_at IS NOT NULL')
+      .andWhere('expires_at < NOW()')
+      .execute();
+    return result.affected || 0;
+  }
+
+  async findTemporary(): Promise<Document[]> {
+    return this.createQueryBuilder('doc')
+      .where('doc.is_temporary = true')
+      .orderBy('doc.created_at', 'DESC')
+      .getMany();
+  }
+
+  async findPermanent(): Promise<Document[]> {
+    return this.createQueryBuilder('doc')
+      .where('doc.is_temporary = false')
+      .orderBy('doc.created_at', 'DESC')
+      .getMany();
+  }
+
+  async promoteToKnowledge(ids: string[]): Promise<void> {
+    await this.createQueryBuilder()
+      .update(Document)
+      .set({
+        isTemporary: false,
+        expiresAt: null,
+        promotedAt: () => 'NOW()',
+      })
+      .whereInIds(ids)
+      .execute();
+  }
+
+  async findByDocumentGroupId(groupId: string): Promise<Document[]> {
+    return this.createQueryBuilder('doc')
+      .where("doc.metadata->>'documentGroupId' = :groupId", { groupId })
+      .orderBy("(doc.metadata->>'chunkIndex')::int", 'ASC')
+      .getMany();
+  }
+
+  async createDocumentWithTtl(
+    content: string,
+    embedding: number[],
+    metadata: DocumentMetadata,
+    ttlHours: number,
+  ): Promise<Document> {
+    const doc = Document.createWithEmbedding(content, embedding, metadata, {
+      isTemporary: true,
+      ttlHours,
+    });
+    return this.save(doc);
+  }
+
+  async createPermanentDocument(
+    content: string,
+    embedding: number[],
+    metadata: DocumentMetadata,
+  ): Promise<Document> {
+    const doc = Document.createPermanent(content, embedding, metadata);
+    return this.save(doc);
+  }
+
+  async similaritySearchPermanent(
+    embedding: number[],
+    limit: number = 5,
+    threshold: number = 0.7,
+  ): Promise<SimilaritySearchResult[]> {
+    const embeddingStr = `[${embedding.join(',')}]`;
+
+    const results = await this.createQueryBuilder('doc')
+      .select([
+        'doc.id',
+        'doc.content',
+        'doc.metadata',
+        'doc.created_at',
+        `1 - (doc.embedding <=> '${embeddingStr}'::vector) as similarity`,
+      ])
+      .where('doc.embedding IS NOT NULL')
+      .andWhere('doc.is_temporary = false')
+      .andWhere(
+        `1 - (doc.embedding <=> '${embeddingStr}'::vector) >= :threshold`,
+        { threshold },
+      )
+      .orderBy('similarity', 'DESC')
+      .limit(limit)
+      .getRawAndEntities();
+
+    return results.raw.map((raw: { similarity: string }, index: number) => ({
+      document: results.entities[index],
+      similarity: parseFloat(raw.similarity),
+    }));
+  }
 }

@@ -77,3 +77,9 @@ Standard NestJS modular architecture:
 - TypeScript strict mode with ES2023 target
 - Single quotes, trailing commas (Prettier)
 - ESLint flat config with TypeScript-ESLint
+
+## Development Rules
+
+- **Always update Postman collection** when adding or modifying API endpoints. The collection is at `postman/LangChain-Agent-API.postman_collection.json`.
+- **Always use `--save`** when installing new npm packages (e.g., `npm install --save package-name`).
+- **Run lint and build** before committing to catch TypeScript and ESLint errors.

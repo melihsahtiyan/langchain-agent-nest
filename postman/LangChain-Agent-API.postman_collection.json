@@ -1,0 +1,378 @@
+{
+  "info": {
+    "_postman_id": "langchain-agent-api-collection",
+    "name": "LangChain Agent API",
+    "description": "API collection for the LangChain Agent NestJS application",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "sessionId",
+      "value": "test-session-001",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Agent",
+      "description": "Agent chat and session management endpoints",
+      "item": [
+        {
+          "name": "Chat with Agent",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sessionId\": \"{{sessionId}}\",\n  \"message\": \"Hello, who are you and what can you do?\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/agent/chat",
+              "host": ["{{baseUrl}}"],
+              "path": ["agent", "chat"]
+            },
+            "description": "Send a message to the agent and get a response. The agent has access to document search, web search, and document retention tools."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"sessionId\": \"test-session-001\",\n  \"response\": \"Hello! I'm an AI assistant powered by a local LLM...\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Chat with PDF Attachment",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "sessionId",
+                  "value": "{{sessionId}}",
+                  "type": "text"
+                },
+                {
+                  "key": "message",
+                  "value": "Summarize this document for me",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "",
+                  "description": "PDF file to attach (select a PDF file)"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/agent/chat",
+              "host": ["{{baseUrl}}"],
+              "path": ["agent", "chat"]
+            },
+            "description": "Send a message with a PDF attachment. The PDF is scanned with VirusTotal, processed, and stored temporarily (24h TTL). The agent can decide to promote valuable documents to permanent storage."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"sessionId\": \"test-session-001\",\n  \"response\": \"Here's a summary of the document...\",\n  \"documentGroupId\": \"550e8400-e29b-41d4-a716-446655440000\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get Session History",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/agent/sessions/{{sessionId}}/history",
+              "host": ["{{baseUrl}}"],
+              "path": ["agent", "sessions", "{{sessionId}}", "history"]
+            },
+            "description": "Retrieve the full conversation history for a specific session."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Hello\",\n      \"createdAt\": \"2024-01-15T10:30:00.000Z\"\n    },\n    {\n      \"role\": \"assistant\",\n      \"content\": \"Hello! How can I help you today?\",\n      \"createdAt\": \"2024-01-15T10:30:01.000Z\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Clear Session",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/agent/sessions/{{sessionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["agent", "sessions", "{{sessionId}}"]
+            },
+            "description": "Delete all messages in a session. Use this to start a fresh conversation."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "No Content",
+              "code": 204,
+              "body": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Documents",
+      "description": "Document management for RAG knowledge base",
+      "item": [
+        {
+          "name": "Add Single Document",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"NestJS is a progressive Node.js framework for building efficient, reliable and scalable server-side applications. It uses TypeScript by default and combines elements of OOP, FP, and FRP.\",\n  \"metadata\": {\n    \"source\": \"nestjs-docs\",\n    \"title\": \"NestJS Overview\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/agent/documents",
+              "host": ["{{baseUrl}}"],
+              "path": ["agent", "documents"]
+            },
+            "description": "Add a single document to the knowledge base. The document will be embedded and stored for similarity search."
+          },
+          "response": [
+            {
+              "name": "Created",
+              "status": "Created",
+              "code": 201,
+              "body": "{\n  \"id\": \"550e8400-e29b-41d4-a716-446655440000\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Add Multiple Documents (Batch)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"documents\": [\n    {\n      \"content\": \"LangChain is a framework for developing applications powered by language models. It enables applications that are context-aware and can reason.\",\n      \"metadata\": {\n        \"source\": \"langchain-docs\",\n        \"title\": \"LangChain Introduction\"\n      }\n    },\n    {\n      \"content\": \"vLLM is a high-throughput and memory-efficient inference engine for LLMs. It provides an OpenAI-compatible API server.\",\n      \"metadata\": {\n        \"source\": \"vllm-docs\",\n        \"title\": \"vLLM Overview\"\n      }\n    },\n    {\n      \"content\": \"pgvector is an open-source vector similarity search extension for PostgreSQL. It supports exact and approximate nearest neighbor search.\",\n      \"metadata\": {\n        \"source\": \"pgvector-docs\",\n        \"title\": \"pgvector Introduction\"\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/agent/documents/batch",
+              "host": ["{{baseUrl}}"],
+              "path": ["agent", "documents", "batch"]
+            },
+            "description": "Add multiple documents to the knowledge base in a single request. All documents will be embedded and stored."
+          },
+          "response": [
+            {
+              "name": "Created",
+              "status": "Created",
+              "code": 201,
+              "body": "{\n  \"ids\": [\n    \"550e8400-e29b-41d4-a716-446655440001\",\n    \"550e8400-e29b-41d4-a716-446655440002\",\n    \"550e8400-e29b-41d4-a716-446655440003\"\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Upload PDF to Knowledge Base",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "",
+                  "description": "PDF file to upload (select a PDF file)"
+                },
+                {
+                  "key": "title",
+                  "value": "My Document Title",
+                  "type": "text",
+                  "description": "Optional title for the document"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/agent/documents/pdf",
+              "host": ["{{baseUrl}}"],
+              "path": ["agent", "documents", "pdf"]
+            },
+            "description": "Upload a PDF file directly to the permanent knowledge base. The file is scanned with VirusTotal, parsed, chunked, and embedded for similarity search."
+          },
+          "response": [
+            {
+              "name": "Created",
+              "status": "Created",
+              "code": 201,
+              "body": "{\n  \"documentGroupId\": \"550e8400-e29b-41d4-a716-446655440000\",\n  \"chunkCount\": 12,\n  \"title\": \"My Document Title\",\n  \"isTemporary\": false\n}"
+            }
+          ]
+        },
+        {
+          "name": "Upload PDF from URL",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"url\": \"https://example.com/document.pdf\",\n  \"title\": \"Document from URL\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/agent/documents/pdf/url",
+              "host": ["{{baseUrl}}"],
+              "path": ["agent", "documents", "pdf", "url"]
+            },
+            "description": "Fetch a PDF from a URL and add it to the permanent knowledge base. The URL is scanned with VirusTotal, then the PDF is downloaded, parsed, chunked, and embedded."
+          },
+          "response": [
+            {
+              "name": "Created",
+              "status": "Created",
+              "code": 201,
+              "body": "{\n  \"documentGroupId\": \"550e8400-e29b-41d4-a716-446655440000\",\n  \"chunkCount\": 8,\n  \"title\": \"Document from URL\",\n  \"isTemporary\": false\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Health Check",
+      "description": "Application health and readiness endpoints for monitoring and orchestration",
+      "item": [
+        {
+          "name": "App Root",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/",
+              "host": ["{{baseUrl}}"],
+              "path": [""]
+            },
+            "description": "Basic health check - returns Hello World if app is running."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "OK",
+              "code": 200,
+              "body": "Hello World!"
+            }
+          ]
+        },
+        {
+          "name": "Full Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "Comprehensive health check that verifies database connectivity and vLLM model status including GPU metrics."
+          },
+          "response": [
+            {
+              "name": "Healthy",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": \"ok\",\n  \"info\": {\n    \"database\": { \"status\": \"up\" },\n    \"vllm\": {\n      \"status\": \"up\",\n      \"model\": \"mistralai/Mistral-7B-Instruct-v0.3\",\n      \"modelLoaded\": true,\n      \"metrics\": {\n        \"gpuCacheUsagePercent\": 45.2,\n        \"requestsWaiting\": 0,\n        \"requestsRunning\": 1\n      }\n    }\n  },\n  \"error\": {},\n  \"details\": {\n    \"database\": { \"status\": \"up\" },\n    \"vllm\": {\n      \"status\": \"up\",\n      \"model\": \"mistralai/Mistral-7B-Instruct-v0.3\",\n      \"modelLoaded\": true\n    }\n  }\n}"
+            },
+            {
+              "name": "Unhealthy",
+              "status": "Service Unavailable",
+              "code": 503,
+              "body": "{\n  \"status\": \"error\",\n  \"info\": {\n    \"database\": { \"status\": \"up\" }\n  },\n  \"error\": {\n    \"vllm\": {\n      \"status\": \"down\",\n      \"message\": \"vLLM service unavailable\"\n    }\n  },\n  \"details\": {\n    \"database\": { \"status\": \"up\" },\n    \"vllm\": {\n      \"status\": \"down\",\n      \"message\": \"vLLM service unavailable\"\n    }\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Liveness Probe",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health/live",
+              "host": ["{{baseUrl}}"],
+              "path": ["health", "live"]
+            },
+            "description": "Kubernetes liveness probe - returns 200 if the application is running. Use this for container orchestration to determine if the app should be restarted."
+          },
+          "response": [
+            {
+              "name": "Alive",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": \"ok\",\n  \"timestamp\": \"2024-01-15T10:30:00.000Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Readiness Probe",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health/ready",
+              "host": ["{{baseUrl}}"],
+              "path": ["health", "ready"]
+            },
+            "description": "Kubernetes readiness probe - returns 200 if the application is ready to serve traffic. Checks database and vLLM availability. Use this for load balancer routing decisions."
+          },
+          "response": [
+            {
+              "name": "Ready",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": \"ok\",\n  \"info\": {\n    \"database\": { \"status\": \"up\" },\n    \"vllm\": {\n      \"status\": \"up\",\n      \"model\": \"mistralai/Mistral-7B-Instruct-v0.3\",\n      \"modelLoaded\": true\n    }\n  }\n}"
+            },
+            {
+              "name": "Not Ready",
+              "status": "Service Unavailable",
+              "code": 503,
+              "body": "{\n  \"status\": \"error\",\n  \"error\": {\n    \"vllm\": {\n      \"status\": \"down\",\n      \"message\": \"Model not loaded\"\n    }\n  }\n}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -10,6 +10,22 @@ services:
       - PORT=3000
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       - VLLM_BASE_URL=http://vllm:8000/v1
+      - VLLM_MODEL_NAME=${MODEL}
+      - OPENAI_API_KEY=not-needed
+      - LOG_LEVEL=info
+      - LOG_DIR=/app/logs
+      - LOG_TO_DB=true
+      - HF_HOME=/root/.cache/huggingface
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-Xenova/all-MiniLM-L6-v2}
+    volumes:
+      - app_logs:/app/logs
+      - huggingface_cache:/root/.cache/huggingface
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     depends_on:
       postgres:
         condition: service_healthy
@@ -21,20 +37,32 @@ services:
 
   vllm:
     image: vllm/vllm-openai:latest
+    entrypoint: ["/bin/bash", "/entrypoint.sh"]
     command:
-      - "--model"
+      - "vllm"
+      - "serve"
       - "${MODEL}"
       - "--host"
       - "0.0.0.0"
       - "--port"
       - "8000"
+      - "--quantization"
+      - "gptq_marlin"
+      - "--max-model-len"
+      - "4096"
+      - "--enable-auto-tool-choice"
+      - "--tool-call-parser"
+      - "hermes"
     ports:
       - "8000:8000"
     environment:
+      - MODEL=${MODEL}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-Xenova/all-MiniLM-L6-v2}
       - HF_TOKEN=${HF_TOKEN}
       - HUGGING_FACE_HUB_TOKEN=${HF_TOKEN}
     volumes:
       - huggingface_cache:/root/.cache/huggingface
+      - ./docker/vllm/entrypoint.sh:/entrypoint.sh:ro
     deploy:
       resources:
         reservations:
@@ -101,6 +129,8 @@ services:
     image: nvidia/dcgm-exporter:latest
     ports:
       - "9400:9400"
+    cap_add:
+      - SYS_ADMIN
     deploy:
       resources:
         reservations:
@@ -117,6 +147,7 @@ volumes:
   prometheus_data:
   grafana_data:
   huggingface_cache:
+  app_logs:
 
 networks:
   agent-network:

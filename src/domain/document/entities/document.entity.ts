@@ -11,7 +11,13 @@ export interface DocumentMetadata {
   title?: string;
   chunkIndex?: number;
   totalChunks?: number;
+  documentGroupId?: string;
   [key: string]: unknown;
+}
+
+export interface DocumentTtlOptions {
+  isTemporary?: boolean;
+  ttlHours?: number;
 }
 
 @Entity('documents')
@@ -28,6 +34,16 @@ export class Document {
 
   @Column('jsonb', { default: {} })
   metadata: DocumentMetadata;
+
+  @Column({ name: 'is_temporary', type: 'boolean', default: true })
+  isTemporary: boolean;
+
+  @Index()
+  @Column({ name: 'expires_at', type: 'timestamptz', nullable: true })
+  expiresAt: Date | null;
+
+  @Column({ name: 'promoted_at', type: 'timestamptz', nullable: true })
+  promotedAt: Date | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
@@ -46,11 +62,39 @@ export class Document {
     content: string,
     embedding: number[],
     metadata?: DocumentMetadata,
+    ttlOptions?: DocumentTtlOptions,
   ): Document {
     const doc = new Document();
     doc.content = content;
     doc.setEmbedding(embedding);
     doc.metadata = metadata || {};
+
+    if (ttlOptions?.isTemporary) {
+      doc.isTemporary = true;
+      if (ttlOptions.ttlHours) {
+        doc.expiresAt = new Date(
+          Date.now() + ttlOptions.ttlHours * 60 * 60 * 1000,
+        );
+      }
+    } else {
+      doc.isTemporary = false;
+      doc.expiresAt = null;
+    }
+
+    return doc;
+  }
+
+  static createPermanent(
+    content: string,
+    embedding: number[],
+    metadata?: DocumentMetadata,
+  ): Document {
+    const doc = new Document();
+    doc.content = content;
+    doc.setEmbedding(embedding);
+    doc.metadata = metadata || {};
+    doc.isTemporary = false;
+    doc.expiresAt = null;
     return doc;
   }
 

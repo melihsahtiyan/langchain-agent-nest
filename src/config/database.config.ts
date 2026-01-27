@@ -16,7 +16,11 @@ export default registerAs(
     password: process.env.DATABASE_URL ? undefined : process.env.DB_PASSWORD,
     database: process.env.DATABASE_URL ? undefined : process.env.DB_NAME,
     autoLoadEntities: true,
-    synchronize: process.env.NODE_ENV !== 'production',
+    // Always use migrations, never synchronize
+    synchronize: false,
+    // Run migrations automatically on app start
+    migrationsRun: true,
+    migrations: [__dirname + '/../migrations/*{.ts,.js}'],
     logging: process.env.NODE_ENV !== 'production',
   }),
 );
