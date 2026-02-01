@@ -1,4 +1,4 @@
-import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createReactAgent } from '@langchain/langgraph/prebuilt';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
@@ -13,6 +13,7 @@ import { Document as LangChainDocument } from '@langchain/core/documents';
 import { PdfProcessorService } from '../../infrastructure/document-processing/pdf-processor.service';
 import { VirusTotalService } from '../../infrastructure/security/virustotal.service';
 import { DocumentRepository } from '../document/repositories/document.repository';
+import { AppLoggerService } from '../../infrastructure/logging/logger.service';
 
 export interface ChatResponse {
   sessionId: string;
@@ -35,7 +36,7 @@ export interface DocumentUploadResult {
 const SYSTEM_PROMPT = `You are a helpful AI assistant with access to multiple tools:
 
 1. **search_documents** - Search your permanent knowledge base for stored documents
-2. **web_search** - Search the internet via DuckDuckGo for current information
+2. **web_search** - Search the internet for current information
 3. **promote_document_to_knowledge** - Save valuable documents permanently
 
 When a user attaches a document to their message:
@@ -46,11 +47,12 @@ When a user attaches a document to their message:
   - FAVOR (discard): One-time tasks like summarizing a receipt, extracting specific data, temporary files
 - Only call promote_document_to_knowledge for true knowledge worth retaining
 
-Always be helpful, accurate, and cite your sources. For web searches, mention that the information comes from the internet.`;
+Always be helpful, accurate, and cite your sources. For web searches, mention that the information comes from the internet.
+
+IMPORTANT: Always respond in the same language the user used in their message. If the user writes in Turkish, respond in Turkish. If they write in English, respond in English. Match their language exactly.`;
 
 @Injectable()
 export class AgentService {
-  private readonly logger = new Logger(AgentService.name);
   private readonly maxContextMessages: number;
   private readonly similarityThreshold: number;
   private readonly documentTtlHours: number;
@@ -64,7 +66,9 @@ export class AgentService {
     private readonly virusTotal: VirusTotalService,
     private readonly documentRepository: DocumentRepository,
     private readonly embeddingsService: EmbeddingsService,
+    private readonly logger: AppLoggerService,
   ) {
+    this.logger.setContext(AgentService.name);
     this.maxContextMessages = this.configService.get<number>(
       'AGENT_MAX_CONTEXT_MESSAGES',
       20,
@@ -91,7 +95,7 @@ export class AgentService {
 
     const tools = [
       createDocumentSearchTool(this.vectorStore, this.similarityThreshold),
-      createWebSearchTool(),
+      createWebSearchTool(this.logger),
       createDocumentRetentionTool(this.documentRepository),
     ];
 
@@ -220,7 +224,7 @@ export class AgentService {
 
     const tools = [
       createDocumentSearchTool(this.vectorStore, this.similarityThreshold),
-      createWebSearchTool(),
+      createWebSearchTool(this.logger),
       createDocumentRetentionTool(this.documentRepository),
     ];
 

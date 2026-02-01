@@ -27,7 +27,7 @@
   },
   "dependencies": {
     "@huggingface/transformers": "^3.8.1",
-    "@langchain/community": "^1.1.7",
+    "@langchain/community": "^1.1.10",
     "@langchain/core": "^1.1.16",
     "@langchain/openai": "^1.2.3",
     "@nestjs/common": "^11.0.1",
