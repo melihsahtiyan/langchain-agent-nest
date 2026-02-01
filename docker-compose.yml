@@ -126,11 +126,16 @@ services:
       - agent-network
 
   dcgm-exporter:
-    image: nvidia/dcgm-exporter:latest
+    image: nvcr.io/nvidia/k8s/dcgm-exporter:3.3.8-3.6.0-ubuntu22.04
     ports:
       - "9400:9400"
     cap_add:
       - SYS_ADMIN
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - DCGM_EXPORTER_INTERVAL=30000
+    volumes:
+      - /sys:/sys:ro
     deploy:
       resources:
         reservations:
